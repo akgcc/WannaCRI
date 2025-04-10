@@ -9,6 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from tempfile import TemporaryFile
 from typing import List, Optional, Union, Tuple, Dict, Generator, IO, Callable
+import io
 
 from .tools import (
     generate_keys,
@@ -145,23 +146,37 @@ class Usm:
         filepath: Union[str, pathlib.Path],
         key: Optional[int] = None,
         encoding: str = "UTF-8",
+        raw_bytes: Optional[bytes] = None
     ) -> Usm:
-        filesize = os.path.getsize(filepath)
-        if filesize <= 0x20:
-            raise ValueError(f"File {filepath} too small.")
+        if raw_bytes:
+            # If raw bytes are provided, use BytesIO to read them
+            usmfile = io.BytesIO(raw_bytes)
+            filesize = len(raw_bytes)  # Set filesize based on raw bytes length
+            logging.info(
+                "Loading USM from raw bytes.",
+                extra={
+                    "size": filesize,
+                    "encoding": encoding,
+                    "is_key_given": key is not None,
+                },
+            )
+        else:
+            # If file path is provided, open the file
+            filesize = os.path.getsize(filepath)
+            if filesize <= 0x20:
+                raise ValueError(f"File {filepath} too small.")
 
-        usmfile = open(filepath, "rb")
-        filename = os.path.basename(filepath)
-        logging.info(
-            "Loading USM from file.",
-            extra={
-                "usm_name": filename,
-                "size": filesize,
-                "encoding": encoding,
-                "is_key_given": key is not None,
-            },
-        )
-
+            usmfile = open(filepath, "rb")
+            filename = os.path.basename(filepath)
+            logging.info(
+                "Loading USM from file.",
+                extra={
+                    "usm_name": filename,
+                    "size": filesize,
+                    "encoding": encoding,
+                    "is_key_given": key is not None,
+                },
+            )
         signature = usmfile.read(4)
 
         if not is_usm(signature):
